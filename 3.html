@@ -69,6 +69,10 @@
             margin-top: 10px;
             min-height: 20px;
         }
+
+        .crumble {
+            transition: transform 0.6s ease, opacity 0.6s ease;
+        }
     </style>
 </head>
 <body>
@@ -113,9 +117,80 @@
         const input = document.querySelector('#myInput');
         const inputLog = document.querySelector('#inputLog'); // 시각적 확인용
 
+        let crumbled = false;
+
+        // --- 드래그 상태 ---
+        let dragging = null;
+        let dragStartX = 0, dragStartY = 0;
+        let elStartX = 0, elStartY = 0, elStartRot = 0;
+
+        function getTransformValues(el) {
+          const match = el.style.transform.match(/translate\(([^,]+)px,\s*([^)]+)px\)\s*rotate\(([^)]+)deg\)/);
+          if (match) return { tx: parseFloat(match[1]), ty: parseFloat(match[2]), rot: parseFloat(match[3]) };
+          return { tx: 0, ty: 0, rot: 0 };
+        }
+
+        document.addEventListener('mousemove', (e) => {
+          if (!dragging) return;
+          const dx = e.clientX - dragStartX;
+          const dy = e.clientY - dragStartY;
+          dragging.style.transform = `translate(${elStartX + dx}px, ${elStartY + dy}px) rotate(${elStartRot}deg)`;
+        });
+
+        document.addEventListener('mouseup', () => {
+          if (dragging) {
+            dragging.style.cursor = 'grab';
+            dragging = null;
+          }
+        });
+
+        function makeDraggable(el) {
+          el.style.cursor = 'grab';
+          el.addEventListener('mousedown', (e) => {
+            if (!crumbled) return;
+            e.preventDefault();
+            dragging = el;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            const vals = getTransformValues(el);
+            elStartX = vals.tx;
+            elStartY = vals.ty;
+            elStartRot = vals.rot;
+            el.style.transition = 'none';
+            el.style.cursor = 'grabbing';
+          });
+        }
+
+        // 모든 section에 드래그 이벤트 등록
+        document.querySelectorAll('.container .section').forEach(makeDraggable);
+
         input.addEventListener('input', (e) => {
           console.log('Current value:', e.target.value);
           inputLog.textContent = `입력값: ${e.target.value}`; // 화면에 표시
+
+          if (!crumbled && e.target.value.length > 0) {
+            crumbled = true;
+            const targets = document.querySelectorAll('.container .section');
+            targets.forEach((el) => {
+              el.style.transition = 'transform 0.6s ease';
+              const tx = (Math.random() - 0.5) * 100;
+              const ty = window.innerHeight - el.getBoundingClientRect().top + 50;
+              const rot = (Math.random() - 0.5) * 60;
+              el.style.transform = `translate(${tx}px, ${ty}px) rotate(${rot}deg)`;
+              el.style.opacity = '1';
+            });
+          }
+
+          if (e.target.value.length === 0) {
+            crumbled = false;
+            const targets = document.querySelectorAll('.container .section');
+            targets.forEach((el) => {
+              el.style.transition = 'transform 0.6s ease';
+              el.style.transform = '';
+              el.style.opacity = '';
+              el.style.cursor = 'default';
+            });
+          }
         });
 
         // 3. Form 제출
